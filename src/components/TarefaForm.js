@@ -1,48 +1,108 @@
 import React, { useState, useEffect } from 'react';
 
-const TarefaForm = ({ onSave, tarefaToEdit, onCancel }) => {
+const DIAS_SEMANA = [
+  { key: 'MONDAY', label: 'S' },
+  { key: 'TUESDAY', label: 'T' },
+  { key: 'WEDNESDAY', label: 'Q' },
+  { key: 'THURSDAY', label: 'Q' },
+  { key: 'FRIDAY', label: 'S' },
+  { key: 'SATURDAY', label: 'S' },
+  { key: 'SUNDAY', label: 'D' },
+];
+
+const TarefaForm = ({ onSave, onSaveRecurring, tarefaToEdit, onCancel }) => {
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
-  const [status, setStatus] = useState('Pendente');
-  const [horarioData, setHorarioData] = useState('');
+  const [horarioInicio, setHorarioInicio] = useState('');
+  const [horarioFim, setHorarioFim] = useState('');
+  const [diasSelecionados, setDiasSelecionados] = useState([]);
 
-  // Preenche o formulário quando uma tarefa é passada para edição
   useEffect(() => {
+    setDiasSelecionados([]);
     if (tarefaToEdit) {
       setNome(tarefaToEdit.nome);
       setDescricao(tarefaToEdit.descricao);
-      setStatus(tarefaToEdit.status);
-      // Formata a data para o input datetime-local
-      setHorarioData(tarefaToEdit.horarioData ? tarefaToEdit.horarioData.substring(0, 16) : '');
+      setHorarioInicio(tarefaToEdit.horarioInicio ? tarefaToEdit.horarioInicio.substring(0, 16) : '');
+      setHorarioFim(tarefaToEdit.horarioFim ? tarefaToEdit.horarioFim.substring(0, 16) : '');
     } else {
-      // Limpa o formulário para uma nova tarefa
       setNome('');
       setDescricao('');
-      setStatus('Pendente');
-      setHorarioData('');
+      setHorarioInicio('');
+      setHorarioFim('');
     }
   }, [tarefaToEdit]);
 
+  const handleDiaToggle = (diaKey) => {
+    setDiasSelecionados(prev =>
+      prev.includes(diaKey) ? prev.filter(d => d !== diaKey) : [...prev, diaKey]
+    );
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!nome) {
-      alert('O nome da tarefa é obrigatório.');
-      return;
-    }
+    if (!nome) return alert('O nome da tarefa é obrigatório.');
 
-    const tarefa = {
-      id: tarefaToEdit ? tarefaToEdit.id : null,
-      nome,
-      descricao,
-      status,
-      horarioData: horarioData ? `${horarioData}:00` : null, // Adiciona segundos para compatibilidade
-    };
-    onSave(tarefa);
+    if (diasSelecionados.length > 0 && !tarefaToEdit) {
+      const recurringData = {
+        nome,
+        descricao,
+        status: 'Pendente',
+        diasDaSemana: diasSelecionados,
+        horarioInicio: horarioInicio ? horarioInicio.split('T')[1] : '09:00',
+        horarioFim: horarioFim ? horarioFim.split('T')[1] : '10:00',
+      };
+      onSaveRecurring(recurringData);
+    } else {
+      const tarefa = {
+        id: tarefaToEdit ? tarefaToEdit.id : null,
+        nome,
+        descricao,
+        status: tarefaToEdit ? tarefaToEdit.status : 'Pendente',
+        horarioInicio: horarioInicio ? `${horarioInicio}:00` : null,
+        horarioFim: horarioFim ? `${horarioFim}:00` : null,
+      };
+      onSave(tarefa);
+    }
   };
+
+  const isRecurring = diasSelecionados.length > 0 && !tarefaToEdit;
+  
+  // Função auxiliar para simplificar a atualização do estado do horário
+  const handleTimeChange = (value, setTimeState, otherTimeState) => {
+      const datePart = isRecurring ? "2025-09-13" : value.split('T')[0];
+      const timePart = isRecurring ? value : (value.split('T')[1] || '');
+      
+      if(isRecurring){
+          setTimeState(`2025-09-13T${timePart}`);
+      } else {
+          setTimeState(value);
+      }
+  };
+
 
   return (
     <form onSubmit={handleSubmit} className="tarefa-form">
-      <h2>{tarefaToEdit ? 'Editar Tarefa' : 'Adicionar Nova Tarefa'}</h2>
+      <h2>{tarefaToEdit ? 'Editar Tarefa' : 'Adicionar Tarefa'}</h2>
+      
+      {!tarefaToEdit && (
+        <div className="form-group">
+          <label>Repetir nos dias</label>
+          <div className="day-selector">
+            {DIAS_SEMANA.map((dia, index) => (
+              <button
+                type="button"
+                key={index}
+                className={`day-button ${diasSelecionados.includes(dia.key) ? 'selected' : ''}`}
+                onClick={() => handleDiaToggle(dia.key)}
+                title={dia.key}
+              >
+                {dia.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="form-group">
         <label>Nome</label>
         <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} required />
@@ -51,18 +111,28 @@ const TarefaForm = ({ onSave, tarefaToEdit, onCancel }) => {
         <label>Descrição</label>
         <textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows="3" />
       </div>
-      <div className="form-group">
-        <label>Status</label>
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="Pendente">Pendente</option>
-          <option value="Em Andamento">Em Andamento</option>
-          <option value="Concluída">Concluída</option>
-        </select>
+      
+      <div className="form-group-row">
+        <div className="form-group">
+            <label>{isRecurring ? 'Horário de Início' : 'Data e Horário de Início'}</label>
+            <input
+              type={isRecurring ? 'time' : 'datetime-local'}
+              value={isRecurring ? (horarioInicio.split('T')[1] || '') : horarioInicio}
+              onChange={(e) => handleTimeChange(e.target.value, setHorarioInicio, horarioFim)}
+              required
+            />
+        </div>
+        <div className="form-group">
+            <label>{isRecurring ? 'Horário de Fim' : 'Data e Horário de Fim'}</label>
+            <input
+              type={isRecurring ? 'time' : 'datetime-local'}
+              value={isRecurring ? (horarioFim.split('T')[1] || '') : horarioFim}
+              onChange={(e) => handleTimeChange(e.target.value, setHorarioFim, horarioInicio)}
+              required
+            />
+        </div>
       </div>
-      <div className="form-group">
-        <label>Data e Horário</label>
-        <input type="datetime-local" value={horarioData} onChange={(e) => setHorarioData(e.target.value)} />
-      </div>
+
       <div className="form-actions">
         <button type="button" onClick={onCancel} className="button-secondary">Cancelar</button>
         <button type="submit" className="button-primary">Salvar</button>
