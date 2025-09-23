@@ -1,33 +1,54 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/api/tarefa';
+const API_URL = 'http://localhost:8080';
 
-const getAllTarefas = () => {
-    return axios.get(`${API_URL}/Listar`);
+const api = axios.create({
+    baseURL: API_URL
+});
+
+// Interceptor que adiciona o token em todas as requisições autenticadas
+api.interceptors.request.use(config => {
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
+// --- Funções de Autenticação ---
+const register = (username, password) => {
+    return axios.post(`${API_URL}/api/auth/register`, { username, password });
 };
 
-const createTarefa = (tarefa) => {
-    return axios.post(`${API_URL}/Create`, tarefa);
+const login = async (username, password) => {
+    const response = await axios.post(`${API_URL}/api/auth/login`, { username, password });
+    if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+    }
+    return response.data;
 };
 
-const updateTarefa = (id, tarefa) => {
-    return axios.put(`${API_URL}/Update/${id}`, tarefa);
+const logout = () => {
+    localStorage.removeItem('token');
 };
 
-const deleteTarefa = (id) => {
-    return axios.delete(`${API_URL}/Delete/${id}`);
-};
+// --- Funções de Tarefas (usando a instância 'api' segura) ---
+const getAllTarefas = () => api.get('/api/tarefas');
+const createTarefa = (tarefa) => api.post('/api/tarefas', tarefa);
+const updateTarefa = (id, tarefa) => api.put(`/api/tarefas/${id}`, tarefa);
+const deleteTarefa = (id) => api.delete(`/api/tarefas/${id}`);
+const createRecurringTarefa = (recurringData) => api.post('/api/tarefas/recorrente', recurringData);
 
-const createRecurringTarefa = (recurringData) => {
-    return axios.post(`${API_URL}/CreateRecurring`, recurringData);
-};
 
-const apiService = {
+const ApiService = {
+    register,
+    login,
+    logout,
     getAllTarefas,
     createTarefa,
     updateTarefa,
     deleteTarefa,
-    createRecurringTarefa,
+    createRecurringTarefa // <-- A função que faltava exportar
 };
 
-export default apiService;
+export default ApiService;
