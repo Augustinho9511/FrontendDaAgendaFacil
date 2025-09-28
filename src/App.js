@@ -9,6 +9,7 @@ import RegisterPage from './pages/RegisterPage';
 import TarefasPage from './pages/TarefasPage';
 import PrivateRoute from './components/PrivateRoute';
 
+import { Toaster } from 'react-hot-toast';
 // 2. IMPORTAR O ARQUIVO DE ESTILOS CSS
 import './App.css'; 
 
@@ -16,6 +17,16 @@ function App() {
     return (
 
         <AuthProvider>
+            <Toaster
+                position="top-right" // Posição na tela
+                toastOptions={{
+                    duration: 4000, // Duração de 4 segundos
+                    style: {
+                        background: '#363636',
+                        color: '#fff',
+                    },
+                }}
+            />
             <Router>
                 <Routes>
                     <Route path="/login" element={<LoginPage />} />
